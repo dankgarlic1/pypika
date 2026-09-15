@@ -1212,6 +1212,16 @@ class ArithmeticExpression(Term):
         return right_op in self.add_order
 
     def get_sql(self, with_alias: bool = False, **kwargs: Any) -> str:
+
+        if hasattr(self.right, "get_date_arithmetic_sql"):
+            override_sql = self.right.get_date_arithmetic_sql(self.left, self.operator, **kwargs)
+            if override_sql:
+                if with_alias:
+                    from pypika.utils import format_alias_sql
+
+                    return format_alias_sql(override_sql, self.alias, **kwargs)
+                return override_sql
+
         left_op, right_op = [getattr(side, "operator", None) for side in [self.left, self.right]]
 
         arithmetic_sql = "{left}{operator}{right}".format(
@@ -1776,6 +1786,47 @@ class Interval(Term):
             return "datetime('now')"
 
         return f"datetime('now', {', '.join(components)})"
+
+    def get_date_arithmetic_sql(self, left_term, operator, **kwargs: Any) -> str | None:
+        """
+        Allows Interval to override how it behaves in math expressions for specific dialects.
+        Returns the formatted SQLite string, or None if standard algebra should be used.
+        """
+        from pypika.enums import Dialects, Arithmetic
+
+        dialect = kwargs.get("dialect")
+        if dialect != Dialects.SQLLITE:
+            return None
+
+        if operator not in (Arithmetic.add, Arithmetic.sub):
+            return None
+
+        left_sql = left_term.get_sql(**kwargs)
+
+        is_subtraction = operator == Arithmetic.sub
+        components = []
+
+        if hasattr(self, "quarters"):
+            val = getattr(self, "quarters") * 3
+            sign = "-" if (self.is_negative != is_subtraction) else "+"
+            components.append(f"'{sign}{val} months'")
+
+        elif hasattr(self, "weeks"):
+            val = getattr(self, "weeks") * 7
+            sign = "-" if (self.is_negative != is_subtraction) else "+"
+            components.append(f"'{sign}{val} days'")
+
+        else:
+            for unit, label in zip(self.units, self.labels):
+                if hasattr(self, unit) and getattr(self, unit):
+                    val = getattr(self, unit)
+                    sign = "-" if (self.is_negative ^ is_subtraction) else "+"
+                    sqlite_unit = self.sqlite_units.get(label, unit)
+                    components.append(f"'{sign}{val} {sqlite_unit}'")
+
+        modifiers = ", ".join(components)
+
+        return f"datetime({left_sql}, {modifiers})"
 
 
 class Pow(Function):
