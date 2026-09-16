@@ -1217,8 +1217,6 @@ class ArithmeticExpression(Term):
             override_sql = self.right.get_date_arithmetic_sql(self.left, self.operator, **kwargs)
             if override_sql:
                 if with_alias:
-                    from pypika.utils import format_alias_sql
-
                     return format_alias_sql(override_sql, self.alias, **kwargs)
                 return override_sql
 
