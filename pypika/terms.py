@@ -1212,6 +1212,7 @@ class ArithmeticExpression(Term):
         return right_op in self.add_order
 
     def get_sql(self, with_alias: bool = False, **kwargs: Any) -> str:
+        from pypika.utils import format_alias_sql
 
         if hasattr(self.right, "get_date_arithmetic_sql"):
             override_sql = self.right.get_date_arithmetic_sql(self.left, self.operator, **kwargs)
@@ -1790,6 +1791,8 @@ class Interval(Term):
         Allows Interval to override how it behaves in math expressions for specific dialects.
         Returns the formatted SQLite string, or None if standard algebra should be used.
         """
+
+        from pypika.enums import Dialects, Arithmetic
 
         dialect = kwargs.get("dialect")
         if dialect != Dialects.SQLLITE:
