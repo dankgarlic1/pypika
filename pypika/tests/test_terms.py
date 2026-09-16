@@ -122,7 +122,6 @@ class IntervalSQLiteTests(TestCase):
         self.assertEqual('SELECT CURRENT_TIMESTAMP FROM "abc"', query.get_sql(dialect=Dialects.SQLLITE))
 
     def test_sqlite_interval_math_with_alias(self):
-        """Test that SQLite date math correctly preserves PyPika aliases"""
         table = Table("abc")
 
         query = Query.from_(table).select((Now() - Interval(months=1)).as_("my_date"))
