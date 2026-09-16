@@ -1,7 +1,9 @@
 from unittest import TestCase
 
 from pypika import Field, Query, Table
-from pypika.terms import AtTimezone
+from pypika.terms import AtTimezone, Interval
+from pypika.functions import Now
+from pypika.enums import Dialects
 
 
 class FieldAliasTests(TestCase):
@@ -101,4 +103,30 @@ class IdentifierEscapingTests(TestCase):
             'FROM "customers""" WHERE """id"=\'abc\' AND "email"""=\'abc@abc.com\' '
             'ORDER BY "customer_email""","""id"',
             query.get_sql(),
+        )
+
+
+class IntervalSQLiteTests(TestCase):
+    def test_sqlite_interval_math(self):
+        table = Table("abc")
+
+        query_sub = Query.from_(table).select(Now() - Interval(days=30))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-30 days\') FROM "abc"', query_sub.get_sql(dialect=Dialects.SQLLITE)
+        )
+
+    def test_sqlite_empty_interval_math(self):
+        table = Table("abc")
+
+        query = Query.from_(table).select(Now() - Interval())
+        self.assertEqual('SELECT CURRENT_TIMESTAMP FROM "abc"', query.get_sql(dialect=Dialects.SQLLITE))
+
+    def test_sqlite_interval_math_with_alias(self):
+        """Test that SQLite date math correctly preserves PyPika aliases"""
+        table = Table("abc")
+
+        query = Query.from_(table).select((Now() - Interval(months=1)).as_("my_date"))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-1 months\') "my_date" FROM "abc"',
+            query.get_sql(dialect=Dialects.SQLLITE),
         )
