@@ -1792,7 +1792,6 @@ class Interval(Term):
         Allows Interval to override how it behaves in math expressions for specific dialects.
         Returns the formatted SQLite string, or None if standard algebra should be used.
         """
-        from pypika.enums import Dialects, Arithmetic
 
         dialect = kwargs.get("dialect")
         if dialect != Dialects.SQLLITE:
@@ -1820,9 +1819,12 @@ class Interval(Term):
             for unit, label in zip(self.units, self.labels):
                 if hasattr(self, unit) and getattr(self, unit):
                     val = getattr(self, unit)
-                    sign = "-" if (self.is_negative ^ is_subtraction) else "+"
+                    sign = "-" if (self.is_negative != is_subtraction) else "+"
                     sqlite_unit = self.sqlite_units.get(label, unit)
                     components.append(f"'{sign}{val} {sqlite_unit}'")
+
+        if not components:
+            return left_sql
 
         modifiers = ", ".join(components)
 
